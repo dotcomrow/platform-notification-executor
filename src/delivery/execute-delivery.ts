@@ -1,12 +1,17 @@
 import { randomUUID } from "node:crypto";
 import { config } from "../config.js";
 import { redactJsonRecord } from "../lib/json.js";
+import { executeBrowserPushDelivery } from "./browser-push.js";
 import { DeliveryRequest, DeliveryResult } from "./types.js";
 
 export async function executeDelivery(notificationRequestId: string, input: DeliveryRequest): Promise<DeliveryResult> {
   const providerKey = input.provider_key || `${input.channel}:default`;
 
   if (config.executorMode !== "dry_run") {
+    if (input.channel === "browser_push") {
+      return executeBrowserPushDelivery(notificationRequestId, providerKey, input);
+    }
+
     return {
       ok: false,
       status: "failed",
@@ -16,7 +21,7 @@ export async function executeDelivery(notificationRequestId: string, input: Deli
         mode: config.executorMode,
         notification_request_id: notificationRequestId
       },
-      error_message: "Provider execution mode is not implemented yet."
+      error_message: `Provider execution mode is not implemented for channel ${input.channel}.`
     };
   }
 

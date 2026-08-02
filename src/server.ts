@@ -7,6 +7,7 @@ import { config } from "./config.js";
 import { enforceInternalAuth } from "./auth/internal-auth.js";
 import { resolveInternalToken } from "./lib/vault.js";
 import { asRecord, redactJsonRecord, truncate } from "./lib/json.js";
+import { resolveBrowserPushConfig } from "./delivery/browser-push.js";
 import { executeDelivery } from "./delivery/execute-delivery.js";
 import { parseDeliveryRequest } from "./delivery/validation.js";
 import { openApiSpec } from "./openapi.js";
@@ -26,6 +27,9 @@ app.get("/readyz", async (_req, res) => {
   try {
     if (config.authRequired) {
       await resolveInternalToken();
+    }
+    if (config.executorMode === "provider") {
+      await resolveBrowserPushConfig();
     }
     res.status(200).json({
       ok: true,
