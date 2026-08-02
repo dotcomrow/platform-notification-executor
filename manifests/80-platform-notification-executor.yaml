@@ -38,10 +38,12 @@ spec:
             - -ec
           args:
             - |
-              apk add --no-cache curl jq >/dev/null
+              apk add --no-cache curl jq openssl >/dev/null
 
               VAULT_ADDR="http://vault.vault.svc.cluster.local:8200"
               VAULT_TOKEN="$(cat /vault-token/VAULT_TOKEN)"
+              VAPID_SECRET_PATH="secret/data/platform-notification/browser-push/vapid"
+              VAPID_SUBJECT="mailto:platform-notifications@dotcomrow.com"
 
               cat >/tmp/platform-notification-executor-policy.hcl <<EOF
               path "secret/data/platform-notification-service" {
@@ -81,6 +83,65 @@ spec:
               if [ "${role_code}" != "200" ] && [ "${role_code}" != "204" ]; then
                 echo "Failed to write platform-notification-executor Vault Kubernetes auth role (HTTP ${role_code})."
                 cat /tmp/role-write.json || true
+                exit 1
+              fi
+
+              vapid_code="$(curl -sS -o /tmp/vapid-secret.json -w '%{http_code}' \
+                -H "X-Vault-Token: ${VAULT_TOKEN}" \
+                "${VAULT_ADDR}/v1/${VAPID_SECRET_PATH}" || true)"
+              if [ "${vapid_code}" = "200" ]; then
+                existing_vapid_data="$(jq -c '.data.data // {}' /tmp/vapid-secret.json)"
+                vapid_subject="$(jq -r '.data.data.subject // empty' /tmp/vapid-secret.json)"
+                vapid_public_key="$(jq -r '.data.data.public_key // empty' /tmp/vapid-secret.json)"
+                vapid_private_key="$(jq -r '.data.data.private_key // empty' /tmp/vapid-secret.json)"
+              elif [ "${vapid_code}" = "404" ]; then
+                existing_vapid_data="{}"
+                vapid_subject=""
+                vapid_public_key=""
+                vapid_private_key=""
+              else
+                echo "Failed to read ${VAPID_SECRET_PATH} from Vault (HTTP ${vapid_code})."
+                cat /tmp/vapid-secret.json || true
+                exit 1
+              fi
+
+              if [ -z "${vapid_subject}" ] || [ "${vapid_subject}" = "null" ]; then
+                vapid_subject="${VAPID_SUBJECT}"
+              fi
+
+              if [ -z "${vapid_public_key}" ] || [ "${vapid_public_key}" = "null" ] || [ -z "${vapid_private_key}" ] || [ "${vapid_private_key}" = "null" ]; then
+                openssl ecparam -name prime256v1 -genkey -noout -out /tmp/vapid-private.pem
+                private_key_offset="$(openssl asn1parse -in /tmp/vapid-private.pem \
+                  | awk -F: '/prim: OCTET STRING/{gsub(/ /, "", $1); print $1; exit}')"
+                openssl asn1parse -in /tmp/vapid-private.pem -strparse "${private_key_offset}" -out /tmp/vapid-private.raw -noout
+                vapid_private_key="$(openssl base64 -A < /tmp/vapid-private.raw | tr '+/' '-_' | tr -d '=')"
+                vapid_public_key="$(openssl ec -in /tmp/vapid-private.pem -pubout -outform DER 2>/dev/null \
+                  | tail -c 65 \
+                  | openssl base64 -A \
+                  | tr '+/' '-_' \
+                  | tr -d '=')"
+              fi
+
+              if [ -z "${vapid_public_key}" ] || [ -z "${vapid_private_key}" ]; then
+                echo "Failed to generate browser push VAPID keypair."
+                exit 1
+              fi
+
+              vapid_payload="$(jq -nc \
+                --arg subject "${vapid_subject}" \
+                --arg public_key "${vapid_public_key}" \
+                --arg private_key "${vapid_private_key}" \
+                --argjson existing "${existing_vapid_data}" \
+                '{data:($existing + {subject:$subject, public_key:$public_key, private_key:$private_key})}')"
+              vapid_write_code="$(curl -sS -o /tmp/vapid-secret-write.json -w '%{http_code}' \
+                -X POST \
+                -H "X-Vault-Token: ${VAULT_TOKEN}" \
+                -H "Content-Type: application/json" \
+                -d "${vapid_payload}" \
+                "${VAULT_ADDR}/v1/${VAPID_SECRET_PATH}" || true)"
+              if [ "${vapid_write_code}" != "200" ] && [ "${vapid_write_code}" != "204" ]; then
+                echo "Failed to write ${VAPID_SECRET_PATH} to Vault (HTTP ${vapid_write_code})."
+                cat /tmp/vapid-secret-write.json || true
                 exit 1
               fi
 
