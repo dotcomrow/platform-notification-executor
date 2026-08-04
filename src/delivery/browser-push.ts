@@ -102,6 +102,30 @@ async function getBrowserPushSubscription(subscriptionId: string): Promise<Brows
   return result.payload.browser_subscription;
 }
 
+async function patchBrowserPushSubscriptionLifecycle(
+  subscriptionId: string,
+  body: JsonRecord
+): Promise<JsonRecord> {
+  const token = await resolveInternalToken();
+  if (!token) {
+    throw new Error("Internal auth token is not configured.");
+  }
+
+  const result = await httpJson<JsonRecord>(
+    `${config.platformNotificationServiceUrl}/internal/browser-subscriptions/${encodeURIComponent(subscriptionId)}/lifecycle`,
+    {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}` },
+      body,
+      timeoutMs: config.requestTimeoutMs
+    }
+  );
+  if (result.statusCode >= 400) {
+    throw new Error(`Browser push subscription lifecycle update failed: ${result.statusCode} ${truncate(result.text, 500)}`);
+  }
+  return asRecord(result.payload) ?? {};
+}
+
 function validateSubscription(subscription: BrowserPushSubscriptionRecord): void {
   if (subscription.status && subscription.status !== "active") {
     throw new Error(`Browser push subscription ${subscription.id} is not active.`);
@@ -201,6 +225,28 @@ export async function executeBrowserPushDelivery(
     };
   } catch (error) {
     const maybeWebPushError = error as { statusCode?: number; body?: string; headers?: JsonRecord };
+    const subscriptionShouldDisable = maybeWebPushError.statusCode === 404 || maybeWebPushError.statusCode === 410;
+    let subscriptionDisableResult: JsonRecord | null = null;
+    if (subscriptionShouldDisable) {
+      try {
+        subscriptionDisableResult = await patchBrowserPushSubscriptionLifecycle(subscription.id, {
+          status: "disabled",
+          reason: "provider_endpoint_gone",
+          provider_status_code: maybeWebPushError.statusCode,
+          message: "Browser push provider reported that the subscription endpoint is no longer valid.",
+          metadata: {
+            provider: "web_push",
+            notification_request_id: notificationRequestId,
+            provider_key: providerKey
+          }
+        });
+      } catch (lifecycleError) {
+        subscriptionDisableResult = {
+          ok: false,
+          error: lifecycleError instanceof Error ? truncate(lifecycleError.message, 1000) : "Browser subscription lifecycle update failed."
+        };
+      }
+    }
     return {
       ok: false,
       status: "failed",
@@ -213,7 +259,8 @@ export async function executeBrowserPushDelivery(
         status_code: maybeWebPushError.statusCode || null,
         headers: redactJsonRecord(asRecord(maybeWebPushError.headers) ?? {}),
         body: maybeWebPushError.body ? truncate(maybeWebPushError.body, 1000) : undefined,
-        subscription_should_disable: maybeWebPushError.statusCode === 404 || maybeWebPushError.statusCode === 410
+        subscription_should_disable: subscriptionShouldDisable,
+        subscription_disable_result: subscriptionDisableResult ?? undefined
       },
       error_message: error instanceof Error ? truncate(error.message, 1000) : "Browser push delivery failed."
     };
