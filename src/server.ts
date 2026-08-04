@@ -17,7 +17,17 @@ app.set("trust proxy", config.trustProxyHops);
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.json({ limit: "2mb" }));
 app.use(morgan("combined"));
-app.use(rateLimit({ windowMs: config.rateWindowMs, limit: config.rateMax, standardHeaders: "draft-7", legacyHeaders: false }));
+app.use(rateLimit({
+  windowMs: config.rateWindowMs,
+  limit: config.rateMax,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  skip: (req) =>
+    req.path === "/healthz"
+    || req.path === "/readyz"
+    || req.path === "/openapi.json"
+    || req.path.startsWith("/internal/")
+}));
 
 app.get("/healthz", (_req, res) => {
   res.status(200).json({ ok: true, service: "platform-notification-executor", version: "1.0.0" });
