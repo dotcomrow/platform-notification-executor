@@ -4,13 +4,17 @@ import { DeliveryRequest } from "./types.js";
 
 const channelSchema = z.enum(["in_app", "browser_push", "mobile_push", "email", "sms", "voice", "webhook"]);
 const jsonRecordSchema = z.record(z.unknown()).default({});
+const optionalTextSchema = z.preprocess(
+  (value) => typeof value === "string" && value.trim() === "" ? undefined : value,
+  z.string().trim().min(1).optional()
+);
 
 const messageSchema = z.object({
-  subject: z.string().trim().min(1).optional(),
-  title: z.string().trim().min(1).optional(),
-  text: z.string().trim().min(1).optional(),
-  html: z.string().trim().min(1).optional(),
-  body: z.string().trim().min(1).optional(),
+  subject: optionalTextSchema,
+  title: optionalTextSchema,
+  text: optionalTextSchema,
+  html: optionalTextSchema,
+  body: optionalTextSchema,
   data: jsonRecordSchema.optional()
 }).superRefine((value, ctx) => {
   if (!value.subject && !value.title && !value.text && !value.html && !value.body && !value.data) {
