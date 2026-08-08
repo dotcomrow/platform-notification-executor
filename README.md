@@ -119,7 +119,7 @@ SMTP configuration can be provided directly with environment variables or from
 Vault. The deployment manifest grants access to:
 
 ```text
-secret/data/platform-notification/email/smtp-default
+secret/data/cloudflare-smtp-secret
 ```
 
 Expected Vault keys:

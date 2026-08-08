@@ -24,7 +24,7 @@ const envSchema = z.object({
   EMAIL_SMTP_PASSWORD: z.string().default(""),
   EMAIL_FROM: z.string().default(""),
   EMAIL_REPLY_TO: z.string().default(""),
-  EMAIL_SMTP_VAULT_PATH: z.string().default("secret/data/platform-notification/email/smtp-default"),
+  EMAIL_SMTP_VAULT_PATH: z.string().default("secret/data/cloudflare-smtp-secret"),
   EMAIL_SMTP_HOST_VAULT_KEY: z.string().default("host"),
   EMAIL_SMTP_PORT_VAULT_KEY: z.string().default("port"),
   EMAIL_SMTP_SECURE_VAULT_KEY: z.string().default("secure"),

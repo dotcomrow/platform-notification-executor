@@ -54,7 +54,7 @@ spec:
                 capabilities = ["read"]
               }
 
-              path "secret/data/platform-notification/email/smtp-default" {
+              path "secret/data/cloudflare-smtp-secret" {
                 capabilities = ["read"]
               }
               EOF
@@ -241,7 +241,7 @@ spec:
             - name: BROWSER_PUSH_VAPID_SUBJECT_VAULT_KEY
               value: "subject"
             - name: EMAIL_SMTP_VAULT_PATH
-              value: "secret/data/platform-notification/email/smtp-default"
+              value: "secret/data/cloudflare-smtp-secret"
             - name: EMAIL_SMTP_HOST_VAULT_KEY
               value: "host"
             - name: EMAIL_SMTP_PORT_VAULT_KEY
