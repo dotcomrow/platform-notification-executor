@@ -29,7 +29,7 @@ const envSchema = z.object({
   EMAIL_SMTP_PORT_VAULT_KEY: z.string().default("port"),
   EMAIL_SMTP_SECURE_VAULT_KEY: z.string().default("secure"),
   EMAIL_SMTP_USERNAME_VAULT_KEY: z.string().default("username"),
-  EMAIL_SMTP_PASSWORD_VAULT_KEY: z.string().default("password"),
+  EMAIL_SMTP_PASSWORD_VAULT_KEY: z.string().default("value"),
   EMAIL_FROM_VAULT_KEY: z.string().default("from"),
   EMAIL_REPLY_TO_VAULT_KEY: z.string().default("reply_to"),
   INTERNAL_TOKEN: z.string().default(""),

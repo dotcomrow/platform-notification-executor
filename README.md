@@ -116,21 +116,22 @@ email recipients should use:
 ```
 
 SMTP configuration can be provided directly with environment variables or from
-Vault. The deployment manifest grants access to:
+Vault. The deployment manifest grants access to the Cloudflare SMTP token at:
 
 ```text
 secret/data/cloudflare-smtp-secret
 ```
 
-Expected Vault keys:
+Google Cloud-backed Vault secrets expose their secret payload under a single
+`value` key. The Cloudflare SMTP token is read from that key. Non-secret SMTP
+connection settings are configured with environment variables:
 
-- `host`
-- `port`
-- `secure`
-- `username`
-- `password`
-- `from`
-- `reply_to`
+- `EMAIL_SMTP_HOST=smtp.mx.cloudflare.net`
+- `EMAIL_SMTP_PORT=465`
+- `EMAIL_SMTP_SECURE=true`
+- `EMAIL_SMTP_USERNAME=api_token`
+- `EMAIL_FROM`
+- `EMAIL_REPLY_TO`
 
 ## Configuration
 
