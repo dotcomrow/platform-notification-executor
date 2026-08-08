@@ -53,6 +53,10 @@ spec:
               path "secret/data/platform-notification/browser-push/vapid" {
                 capabilities = ["read"]
               }
+
+              path "secret/data/platform-notification/email/smtp-default" {
+                capabilities = ["read"]
+              }
               EOF
 
               policy_payload="$(jq -Rs '{policy:.}' /tmp/platform-notification-executor-policy.hcl)"
@@ -236,6 +240,22 @@ spec:
               value: "private_key"
             - name: BROWSER_PUSH_VAPID_SUBJECT_VAULT_KEY
               value: "subject"
+            - name: EMAIL_SMTP_VAULT_PATH
+              value: "secret/data/platform-notification/email/smtp-default"
+            - name: EMAIL_SMTP_HOST_VAULT_KEY
+              value: "host"
+            - name: EMAIL_SMTP_PORT_VAULT_KEY
+              value: "port"
+            - name: EMAIL_SMTP_SECURE_VAULT_KEY
+              value: "secure"
+            - name: EMAIL_SMTP_USERNAME_VAULT_KEY
+              value: "username"
+            - name: EMAIL_SMTP_PASSWORD_VAULT_KEY
+              value: "password"
+            - name: EMAIL_FROM_VAULT_KEY
+              value: "from"
+            - name: EMAIL_REPLY_TO_VAULT_KEY
+              value: "reply_to"
             - name: VAULT_ADDR
               value: "http://vault.vault.svc.cluster.local:8200"
             - name: VAULT_TOKEN_FILE

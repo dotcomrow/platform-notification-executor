@@ -6,8 +6,9 @@ NiFi owns orchestration, rule decisions, template selection, retries, and audit
 callbacks. This service owns provider-specific send behavior behind a stable
 HTTP contract.
 
-The first implementation is `dry_run` mode so the platform can validate the
-end-to-end communication pipeline before provider credentials are added.
+The executor supports `dry_run` mode for validating the end-to-end pipeline
+without provider credentials. Provider mode currently supports browser push and
+SMTP email delivery.
 
 ## API
 
@@ -54,8 +55,37 @@ Dry-run response:
 
 ## Provider Boundary
 
-Future provider implementations should plug into the same delivery request and
-return:
+Provider implementations plug into the `DeliveryProvider` contract exported from
+`src/delivery/provider.ts`. A provider declares a manifest and an `execute`
+function:
+
+```ts
+export type DeliveryProvider = {
+  manifest: {
+    providerKey: string;
+    displayName: string;
+    channels: NotificationChannel[];
+    configSchema?: JsonRecord;
+    secretSchema?: JsonRecord;
+    metadata?: JsonRecord;
+  };
+  execute: (
+    notificationRequestId: string,
+    providerKey: string,
+    input: DeliveryRequest
+  ) => Promise<DeliveryResult>;
+};
+```
+
+The core executor registry maps a `provider_key` to a provider. Built-in
+providers currently include:
+
+- `web-push:browser_push`
+- `smtp:default`
+
+Community providers should use stable provider keys such as
+`slack:default`, `discord:default`, `twilio:sms`, or `ses:default`. A packaged
+provider should accept the stable delivery request and return:
 
 - `ok`
 - `status`
@@ -68,6 +98,40 @@ return:
 Provider credentials must be resolved from Vault at runtime. Do not commit
 provider tokens, SMTP passwords, SMS credentials, push keys, or webhook secrets.
 
+Separately deployed provider sidecars are a good future extension point, but
+they need an explicit allowlist, auth model, and payload-redaction rules before
+the core executor should forward delivery payloads to arbitrary URLs.
+
+## Email Provider
+
+Email delivery uses `nodemailer` with the `smtp:default` provider key. Direct
+email recipients should use:
+
+```json
+{
+  "type": "email",
+  "address": "person@example.com",
+  "channels": ["email"]
+}
+```
+
+SMTP configuration can be provided directly with environment variables or from
+Vault. The deployment manifest grants access to:
+
+```text
+secret/data/platform-notification/email/smtp-default
+```
+
+Expected Vault keys:
+
+- `host`
+- `port`
+- `secure`
+- `username`
+- `password`
+- `from`
+- `reply_to`
+
 ## Configuration
 
 Important environment variables:
@@ -77,6 +141,14 @@ Important environment variables:
 - `VAULT_ADDR`
 - `VAULT_TOKEN_FILE`
 - `REQUEST_TIMEOUT_MS`
+- `EMAIL_SMTP_VAULT_PATH`
+- `EMAIL_SMTP_HOST`
+- `EMAIL_SMTP_PORT`
+- `EMAIL_SMTP_SECURE`
+- `EMAIL_SMTP_USERNAME`
+- `EMAIL_SMTP_PASSWORD`
+- `EMAIL_FROM`
+- `EMAIL_REPLY_TO`
 
 ## Local Build
 
