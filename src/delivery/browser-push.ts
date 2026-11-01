@@ -171,6 +171,7 @@ function notificationActions(input: DeliveryRequest): JsonRecord[] {
 function notificationOptions(notificationRequestId: string, input: DeliveryRequest): JsonRecord {
   return {
     tag: asString(input.options.tag, `platform-notification-${notificationRequestId}`),
+    tone: asString(input.options.tone) || undefined,
     icon: asString(input.options.icon) || undefined,
     badge: asString(input.options.badge) || undefined,
     image: asString(input.options.image) || undefined,
@@ -206,6 +207,7 @@ export async function executeBrowserPushDelivery(
     notification_request_id: notificationRequestId,
     title: notificationTitle(input),
     body: notificationBody(input),
+    tone: asString(input.options.tone) || undefined,
     url: asString(input.options.url) || asString(asRecord(input.message.data)?.url) || undefined,
     data: {
       ...(asRecord(input.message.data) ?? {}),
