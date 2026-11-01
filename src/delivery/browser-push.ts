@@ -146,12 +146,37 @@ function notificationBody(input: DeliveryRequest): string {
   return asString(input.message.body) || asString(input.message.text) || asString(input.message.html);
 }
 
+function notificationActions(input: DeliveryRequest): JsonRecord[] {
+  const candidates = Array.isArray(input.options.actions)
+    ? input.options.actions
+    : Array.isArray(asRecord(input.message.data)?.actions)
+      ? asRecord(input.message.data)?.actions as unknown[]
+      : [];
+  const seen = new Set<string>();
+  return candidates.slice(0, 3).flatMap((candidate) => {
+    const action = asRecord(candidate);
+    const id = asString(action?.id) || asString(action?.action);
+    const label = asString(action?.label) || asString(action?.title);
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(id) || !label || seen.has(id)) return [];
+    seen.add(id);
+    return [{
+      id,
+      label: label.slice(0, 80),
+      url: asString(action?.url) || asString(action?.navigate) || undefined,
+      iconUrl: asString(action?.iconUrl) || asString(action?.icon) || undefined
+    }];
+  });
+}
+
 function notificationOptions(notificationRequestId: string, input: DeliveryRequest): JsonRecord {
   return {
     tag: asString(input.options.tag, `platform-notification-${notificationRequestId}`),
     icon: asString(input.options.icon) || undefined,
     badge: asString(input.options.badge) || undefined,
     image: asString(input.options.image) || undefined,
+    imageAlt: asString(input.options.imageAlt) || asString(input.options.image_alt) || undefined,
+    url: asString(input.options.url) || undefined,
+    actions: notificationActions(input),
     requireInteraction: asBoolean(input.options.requireInteraction, false),
     renotify: asBoolean(input.options.renotify, true),
     silent: asBoolean(input.options.silent, false)
@@ -181,6 +206,7 @@ export async function executeBrowserPushDelivery(
     notification_request_id: notificationRequestId,
     title: notificationTitle(input),
     body: notificationBody(input),
+    url: asString(input.options.url) || asString(asRecord(input.message.data)?.url) || undefined,
     data: {
       ...(asRecord(input.message.data) ?? {}),
       notification_request_id: notificationRequestId,
