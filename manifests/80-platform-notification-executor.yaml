@@ -222,7 +222,7 @@ spec:
             - name: vault-secrets
               mountPath: /vault-secrets
         - name: platform-notification-executor
-          image: "ghcr.io/dotcomrow/platform-notification-executor:sha-3c4335bea375"
+          image: "ghcr.io/dotcomrow/platform-notification-executor:sha-59c8a8db7096"
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
